@@ -15,10 +15,7 @@ var (
 )
 
 type Client struct {
-	ApiKey       string
-	ProxyType    string
-	ProxyAddress string
-	ProxyPort    int
+	ApiKey string
 }
 
 // Method to create the task to process the recaptcha, returns the task_id
@@ -27,15 +24,9 @@ func (c *Client) createTask(websiteURL string, recaptchaKey string) float64 {
 	body := map[string]interface{}{
 		"clientKey": c.ApiKey,
 		"task": map[string]interface{}{
-			"type":          "NoCaptchaTask",
-			"websiteURL":    websiteURL,
-			"websiteKey":    recaptchaKey,
-			"proxyType":     c.ProxyType,
-			"proxyAddress":  c.ProxyAddress,
-			"proxyPort":     c.ProxyPort,
-			"proxyLogin":    "",
-			"proxyPassword": "",
-			"userAgent":     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36",
+			"type":       "NoCaptchaTaskProxyless",
+			"websiteURL": websiteURL,
+			"websiteKey": recaptchaKey,
 		},
 	}
 
