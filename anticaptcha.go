@@ -19,7 +19,7 @@ type Client struct {
 	ProxyPort    int
 }
 
-// Function to create the task to process the recaptcha, returns the task_id
+// Method to create the task to process the recaptcha, returns the task_id
 func (c *Client) CreateTask(websiteURL string, recaptchaKey string) float64 {
 	// Mount the data to be sent
 	body := map[string]interface{}{
@@ -55,4 +55,30 @@ func (c *Client) CreateTask(websiteURL string, recaptchaKey string) float64 {
 	json.NewDecoder(resp.Body).Decode(&responseBody)
 	// TODO treat api errors and handle them properly
 	return responseBody["taskId"].(float64)
+}
+
+// Method to check the result of a given task, returns the json returned from the api
+func (c *Client) GetTaskResult(taskId float64) map[string]interface{} {
+	// Mount the data to be sent
+	body := map[string]interface{}{
+		"clientKey": c.ApiKey,
+		"taskId":    taskId,
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Make the request
+	u := baseURL.ResolveReference(&url.URL{Path: "/getTaskResult"})
+	resp, err := http.Post(u.String(), "application/json", bytes.NewBuffer(b))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	// Decode response
+	responseBody := make(map[string]interface{})
+	json.NewDecoder(resp.Body).Decode(&responseBody)
+	return responseBody
 }
