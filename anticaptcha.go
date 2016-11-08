@@ -6,10 +6,12 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 var (
-	baseURL = &url.URL{Host: "api.anti-captcha.com", Scheme: "https", Path: "/"}
+	baseURL      = &url.URL{Host: "api.anti-captcha.com", Scheme: "https", Path: "/"}
+	sendInterval = 10 * time.Second
 )
 
 type Client struct {
@@ -20,7 +22,7 @@ type Client struct {
 }
 
 // Method to create the task to process the recaptcha, returns the task_id
-func (c *Client) CreateTask(websiteURL string, recaptchaKey string) float64 {
+func (c *Client) createTask(websiteURL string, recaptchaKey string) float64 {
 	// Mount the data to be sent
 	body := map[string]interface{}{
 		"clientKey": c.ApiKey,
@@ -58,7 +60,7 @@ func (c *Client) CreateTask(websiteURL string, recaptchaKey string) float64 {
 }
 
 // Method to check the result of a given task, returns the json returned from the api
-func (c *Client) GetTaskResult(taskId float64) map[string]interface{} {
+func (c *Client) getTaskResult(taskId float64) map[string]interface{} {
 	// Mount the data to be sent
 	body := map[string]interface{}{
 		"clientKey": c.ApiKey,
@@ -81,4 +83,26 @@ func (c *Client) GetTaskResult(taskId float64) map[string]interface{} {
 	responseBody := make(map[string]interface{})
 	json.NewDecoder(resp.Body).Decode(&responseBody)
 	return responseBody
+}
+
+// Method to encapsulate the processing of the recaptcha
+// Given a url and a key, it sends to the api and waits until
+// the processing is complete to return the evaluated key
+func (c *Client) Send(websiteURL string, recaptchaKey string) string {
+	// Create the task on anti-captcha api and get the task_id
+	taskId := c.createTask(websiteURL, recaptchaKey)
+
+	// Check if the result is ready, if not loop until it is
+	response := c.getTaskResult(taskId)
+	for {
+		if response["status"] == "processing" {
+			log.Println("Result is not ready, waiting a few seconds to check again...")
+			time.Sleep(sendInterval)
+			response = c.getTaskResult(taskId)
+		} else {
+			log.Println("Result is ready.")
+			break
+		}
+	}
+	return response["solution"].(map[string]interface{})["gRecaptchaResponse"].(string)
 }
