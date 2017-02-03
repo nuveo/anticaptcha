@@ -26,13 +26,36 @@ import (
 
 func main() {
     // Go to https://anti-captcha.com/panel/settings/account to get your key
-    c := &anticaptcha.Client{ApiKey: "your-key-goes-here"}
+    c := &anticaptcha.Client{APIKey: "your-key-goes-here"}
 
-    key := c.Send(
+    key := c.SendRecaptcha(
         "http://http.myjino.ru/recaptcha/test-get.php", // url that has the recaptcha
         "6Lc_aCMTAAAAABx7u2W0WPXnVbI_v6ZdbM6rYf16", // the recaptcha key
     )
     fmt.Println(key)
 }
+
+```
+
+Here's the example for regular catpchas (image to text):
+
+```
+package main
+
+import (
+    "fmt"
+    "github.com/nuveo/anticaptcha"
+)
+
+func main() {
+    // Go to https://anti-captcha.com/panel/settings/account to get your key
+    c := &anticaptcha.Client{APIKey: "your-key-goes-here"}
+
+    text := c.SendImage(
+        "your-base64-string", // the image file encoded to base64
+    )
+    fmt.Println(text)
+}
+
 
 ```
