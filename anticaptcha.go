@@ -3,7 +3,6 @@ package anticaptcha
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -11,7 +10,7 @@ import (
 
 var (
 	baseURL      = &url.URL{Host: "api.anti-captcha.com", Scheme: "https", Path: "/"}
-	sendInterval = 10 * time.Second
+	sendInterval = 3 * time.Second
 )
 
 type Client struct {
@@ -93,14 +92,12 @@ func (c *Client) SendRecaptcha(websiteURL string, recaptchaKey string) (string, 
 	}
 	for {
 		if response["status"] == "processing" {
-			log.Println("Result is not ready, waiting a few seconds to check again...")
 			time.Sleep(sendInterval)
 			response, err = c.getTaskResult(taskID)
 			if err != nil {
 				return "", err
 			}
 		} else {
-			log.Println("Result is ready.")
 			break
 		}
 	}
@@ -155,14 +152,12 @@ func (c *Client) SendImage(imgString string) (string, error) {
 	}
 	for {
 		if response["status"] == "processing" {
-			log.Println("Result is not ready, waiting a few seconds to check again...")
 			time.Sleep(sendInterval)
 			response, err = c.getTaskResult(taskID)
 			if err != nil {
 				return "", err
 			}
 		} else {
-			log.Println("Result is ready.")
 			break
 		}
 	}
