@@ -85,7 +85,7 @@ func (c *Client) SendRecaptcha(websiteURL string, recaptchaKey string, timeoutIn
 		return "", err
 	}
 
-	check := time.NewTicker(checkInterval)
+	check := time.NewTicker(10 * time.Second)
 	timeout := time.NewTimer(timeoutInterval)
 
 	for {
@@ -95,13 +95,10 @@ func (c *Client) SendRecaptcha(websiteURL string, recaptchaKey string, timeoutIn
 			if err != nil {
 				return "", err
 			}
-			if response["status"] == "processing" {
-				response, err = c.getTaskResult(taskID)
-				if err != nil {
-					return "", err
-				}
+			if response["status"] == "ready" {
 				return response["solution"].(map[string]interface{})["gRecaptchaResponse"].(string), nil
 			}
+			check = time.NewTicker(checkInterval)
 		case <-timeout.C:
 			return "", errors.New("antiCaptcha check result timeout")
 		}
