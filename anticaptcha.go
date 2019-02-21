@@ -3,6 +3,7 @@ package anticaptcha
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"time"
@@ -46,7 +47,15 @@ func (c *Client) createTaskRecaptcha(websiteURL string, recaptchaKey string) (fl
 	responseBody := make(map[string]interface{})
 	json.NewDecoder(resp.Body).Decode(&responseBody)
 	// TODO treat api errors and handle them properly
-	return responseBody["taskId"].(float64), nil
+	if _, ok := responseBody["taskId"]; ok {
+		if taskId, ok := responseBody["taskId"].(float64); ok {
+			return taskId, nil
+		}
+
+		return 0, errors.New("task number of irregular format")
+	}
+
+	return 0, errors.New("task number not found in server response")
 }
 
 // Method to check the result of a given task, returns the json returned from the api
