@@ -3,15 +3,15 @@ package anticaptcha
 import (
 	"bytes"
 	"encoding/json"
-	"log"
+	"errors"
 	"net/http"
 	"net/url"
 	"time"
 )
 
 var (
-	baseURL      = &url.URL{Host: "api.anti-captcha.com", Scheme: "https", Path: "/"}
-	sendInterval = 10 * time.Second
+	baseURL       = &url.URL{Host: "api.anti-captcha.com", Scheme: "https", Path: "/"}
+	checkInterval = 2 * time.Second
 )
 
 type Client struct {
@@ -47,7 +47,15 @@ func (c *Client) createTaskRecaptcha(websiteURL string, recaptchaKey string) (fl
 	responseBody := make(map[string]interface{})
 	json.NewDecoder(resp.Body).Decode(&responseBody)
 	// TODO treat api errors and handle them properly
-	return responseBody["taskId"].(float64), nil
+	if _, ok := responseBody["taskId"]; ok {
+		if taskId, ok := responseBody["taskId"].(float64); ok {
+			return taskId, nil
+		}
+
+		return 0, errors.New("task number of irregular format")
+	}
+
+	return 0, errors.New("task number not found in server response")
 }
 
 // Method to check the result of a given task, returns the json returned from the api
@@ -79,32 +87,30 @@ func (c *Client) getTaskResult(taskID float64) (map[string]interface{}, error) {
 // SendRecaptcha Method to encapsulate the processing of the recaptcha
 // Given a url and a key, it sends to the api and waits until
 // the processing is complete to return the evaluated key
-func (c *Client) SendRecaptcha(websiteURL string, recaptchaKey string) (string, error) {
-	// Create the task on anti-captcha api and get the task_id
+func (c *Client) SendRecaptcha(websiteURL string, recaptchaKey string, timeoutInterval time.Duration) (string, error) {
 	taskID, err := c.createTaskRecaptcha(websiteURL, recaptchaKey)
 	if err != nil {
 		return "", err
 	}
 
-	// Check if the result is ready, if not loop until it is
-	response, err := c.getTaskResult(taskID)
-	if err != nil {
-		return "", err
-	}
+	check := time.NewTicker(10 * time.Second)
+	timeout := time.NewTimer(timeoutInterval)
+
 	for {
-		if response["status"] == "processing" {
-			log.Println("Result is not ready, waiting a few seconds to check again...")
-			time.Sleep(sendInterval)
-			response, err = c.getTaskResult(taskID)
+		select {
+		case <-check.C:
+			response, err := c.getTaskResult(taskID)
 			if err != nil {
 				return "", err
 			}
-		} else {
-			log.Println("Result is ready.")
-			break
+			if response["status"] == "ready" {
+				return response["solution"].(map[string]interface{})["gRecaptchaResponse"].(string), nil
+			}
+			check = time.NewTicker(checkInterval)
+		case <-timeout.C:
+			return "", errors.New("antiCaptcha check result timeout")
 		}
 	}
-	return response["solution"].(map[string]interface{})["gRecaptchaResponse"].(string), nil
 }
 
 // Method to create the task to process the image captcha, returns the task_id
@@ -155,14 +161,12 @@ func (c *Client) SendImage(imgString string) (string, error) {
 	}
 	for {
 		if response["status"] == "processing" {
-			log.Println("Result is not ready, waiting a few seconds to check again...")
-			time.Sleep(sendInterval)
+			time.Sleep(checkInterval)
 			response, err = c.getTaskResult(taskID)
 			if err != nil {
 				return "", err
 			}
 		} else {
-			log.Println("Result is ready.")
 			break
 		}
 	}
